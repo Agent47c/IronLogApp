@@ -28,7 +28,8 @@
       "permissions": [
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -42,6 +43,12 @@
         }
       ],
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d4f64aca-7e36-4eec-a2cf-d16c19049dd3"
+      }
+    },
+    "owner": "hamza7433"
   }
 }
