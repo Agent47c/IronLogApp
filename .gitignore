@@ -12,6 +12,7 @@ node_modules/
 dist/
 web-build/
 metro-file-map-*/
+src/Demos/
 
 # NPM
 npm-debug.log*
@@ -22,6 +23,7 @@ yarn-error.log*
 # Unless you are using prebuild, these are generated
 android/
 ios/
+
 
 # Environment variables
 .env
