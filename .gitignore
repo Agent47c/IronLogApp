@@ -1,0 +1,46 @@
+# System Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node modules
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+metro-file-map-*/
+
+# NPM
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android/IOS Native Builds (Managed workflow typically ignores these, but if eager, keep them)
+# Unless you are using prebuild, these are generated
+android/
+ios/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keystores
+*.jks
+*.keystore
+*.pem
+*.p12
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.log
+*.tmp
+.mp4
