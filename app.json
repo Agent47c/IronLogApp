@@ -49,6 +49,11 @@
         "projectId": "d4f64aca-7e36-4eec-a2cf-d16c19049dd3"
       }
     },
+    "expo": {
+      "cli": {
+        "appVersionSource": "remote"
+      }
+    },
     "owner": "hamza7433"
   }
 }
