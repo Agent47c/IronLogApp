@@ -237,6 +237,12 @@ export default function AppNavigator() {
           options={{ title: 'Profile' }}
 
         />
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{ headerShown: false }}
+
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

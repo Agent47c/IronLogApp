@@ -39,7 +39,7 @@ export default function HomeScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
 
   // Analytics data
-  const [streak, setStreak] = useState(0);
+  const [streakData, setStreakData] = useState({ streak: 0, status: 'new', message: 'Start your streak today 💪' });
   const [weeklyProgress, setWeeklyProgress] = useState({ percentage: 0, workoutsThisWeek: 0, weeklyGoal: 4 });
   const [chartData, setChartData] = useState([]);
   const [heatMapData, setHeatMapData] = useState([]);
@@ -59,7 +59,7 @@ export default function HomeScreen({ navigation }) {
       // Load all data in parallel for better performance
       const [
         profileData,
-        streakData,
+        streakData_result,
         weeklyData,
         weeklyChartData,
         heatData,
@@ -74,7 +74,7 @@ export default function HomeScreen({ navigation }) {
       ]);
 
       setProfile(profileData);
-      setStreak(streakData);
+      setStreakData(streakData_result);
       setWeeklyProgress(weeklyData);
       setChartData(weeklyChartData);
       setHeatMapData(heatData);
@@ -151,7 +151,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Streak Counter */}
-        <StreakCounter streak={streak} />
+        <StreakCounter streak={streakData.streak} message={streakData.message} status={streakData.status} />
 
         {/* Start Workout Button - Hero CTA */}
         {!activeSession && (
@@ -230,7 +230,7 @@ export default function HomeScreen({ navigation }) {
 
           <View style={styles.quickStatCard}>
             <Ionicons name="flame" size={24} color={COLORS.warning} />
-            <Text style={styles.quickStatValue}>{streak}</Text>
+            <Text style={styles.quickStatValue}>{streakData.streak}</Text>
             <Text style={styles.quickStatLabel}>Day Streak</Text>
           </View>
         </View>

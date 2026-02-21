@@ -14,6 +14,7 @@ import WorkoutPlanService from '../services/workoutPlanService';
 import { showAlert } from '../components/CustomAlertDialog';
 import GlowingButton from '../components/GlowingButton';
 import { sanitizeString } from '../utils/validation'; // Added validation import
+import { useSession } from '../context/SessionContext';
 
 // Predefined plan templates (removed 'type' field)
 const PLAN_TEMPLATES = [
@@ -57,6 +58,7 @@ const PLAN_TEMPLATES = [
 
 export default function PlanBuilderScreen({ navigation, route }) {
   const { planId } = route.params || {};
+  const { activeSession } = useSession();
   const [step, setStep] = useState(1); // 1: Template selection, 2: Configure workouts
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [planName, setPlanName] = useState('');
@@ -217,6 +219,17 @@ export default function PlanBuilderScreen({ navigation, route }) {
   };
 
   const savePlan = async () => {
+    // Safety guard: block save if this plan has an active session
+    if (planId && activeSession && activeSession.planId === planId) {
+      showAlert({
+        type: 'warning',
+        title: '⚠️ Active Session',
+        message: 'You are currently in an active workout session on this plan.\nPlease finish or cancel the session before saving changes.',
+        buttons: [{ text: 'OK', style: 'cancel' }],
+      });
+      return;
+    }
+
     if (!planName.trim()) {
       showAlert({ type: 'error', title: 'Error', message: 'Please enter a plan name' });
       return;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, commonStyles, getMuscleColor } from '../utils/theme';
 import ExerciseService from '../services/exerciseService';
 import { getVideosForExercise } from '../Demos/videoAssets';
+import { AuthContext } from '../components/AuthGuard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SPEED_OPTIONS = [1, 1.5, 2];
@@ -155,6 +156,8 @@ export default function ExerciseDetailScreen({ route, navigation }) {
   const [speedIndex, setSpeedIndex] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
   const videoViewRef = useRef(null);
+  const { setIgnoreBackground } = useContext(AuthContext);
+  const isFullscreenRef = useRef(false);
 
   const muscleColor = getMuscleColor(exercise.target_muscle);
   const difficultyInfo = getDifficultyInfo(exercise.difficulty);
@@ -203,6 +206,14 @@ export default function ExerciseDetailScreen({ route, navigation }) {
       duration: 400,
       useNativeDriver: true,
     }).start();
+
+    // Cleanup: ensure security lock is re-enabled if screen unmounts while fullscreen
+    return () => {
+      if (isFullscreenRef.current) {
+        setIgnoreBackground(false);
+        isFullscreenRef.current = false;
+      }
+    };
   }, []);
 
   // Set header
@@ -303,6 +314,16 @@ export default function ExerciseDetailScreen({ route, navigation }) {
                   style={styles.videoPlayer}
                   contentFit="contain"
                   nativeControls={false}
+                  onFullscreenEnter={() => {
+                    console.log('🎬 Video entered fullscreen');
+                    setIgnoreBackground(true);
+                    isFullscreenRef.current = true;
+                  }}
+                  onFullscreenExit={() => {
+                    console.log('🎬 Video exited fullscreen');
+                    setIgnoreBackground(false);
+                    isFullscreenRef.current = false;
+                  }}
                 />
 
                 {/* Custom Controls Overlay */}
@@ -365,7 +386,16 @@ export default function ExerciseDetailScreen({ route, navigation }) {
                   <TouchableOpacity
                     style={styles.controlButton}
                     onPress={() => {
+                      setIgnoreBackground(true);
+                      isFullscreenRef.current = true;
                       videoViewRef.current?.enterFullscreen();
+                      // Safety fallback: re-enable lock after 60s in case exit isn't detected
+                      setTimeout(() => {
+                        if (isFullscreenRef.current) {
+                          setIgnoreBackground(false);
+                          isFullscreenRef.current = false;
+                        }
+                      }, 60000);
                     }}
                   >
                     <Ionicons name="expand" size={20} color="#FFFFFF" />

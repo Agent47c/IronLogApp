@@ -26,23 +26,28 @@ export default function AuthGuard({ children }) {
 
     useEffect(() => {
         checkHardware();
+        let lockTimeout = null;
 
         const subscription = AppState.addEventListener('change', nextAppState => {
+            const previousState = appState.current;
+            appState.current = nextAppState;
+
             // Only lock when app goes to background AND we are not ignoring it
             if (nextAppState === 'background') {
                 if (ignoreBackgroundRef.current) {
                     console.log('🛡️ App backgrounded, but ignoring lock due to override.');
                 } else {
-                    console.log('🔒 App backgrounded, locking...');
-                    setIsAuthenticated(false);
+                    // Small delay to let any fullscreen-exit callbacks fire first
+                    if (lockTimeout) clearTimeout(lockTimeout);
+                    lockTimeout = setTimeout(() => {
+                        // Double-check the flag in case it was set during the delay
+                        if (!ignoreBackgroundRef.current) {
+                            console.log('🔒 App backgrounded, locking...');
+                            setIsAuthenticated(false);
+                        }
+                        lockTimeout = null;
+                    }, 500);
                 }
-            }
-
-            if (
-                appState.current.match(/inactive|background/) &&
-                nextAppState === 'active'
-            ) {
-                appState.current = nextAppState;
             }
         });
 
@@ -51,6 +56,7 @@ export default function AuthGuard({ children }) {
 
         return () => {
             subscription.remove();
+            if (lockTimeout) clearTimeout(lockTimeout);
         };
     }, []);
 

@@ -31,6 +31,30 @@ export default function WorkoutPlanScreen({ navigation }) {
     }
   };
 
+  // Check if a plan is blocked from editing due to active session
+  const isEditBlocked = (planId) => {
+    return activeSession && activeSession.planId === planId;
+  };
+
+  const showSessionBlockAlert = () => {
+    showAlert({
+      type: 'warning',
+      title: '⚠️ Active Session',
+      message: 'You are currently in an active workout session.\nPlease finish or cancel this session before editing the plan.',
+      buttons: [
+        { text: 'Go Back', style: 'cancel' },
+        {
+          text: 'Finish Session',
+          onPress: () => navigation.navigate('SessionTracker', {
+            sessionId: activeSession.sessionId,
+            planId: activeSession.planId,
+            workoutId: activeSession.workoutId,
+          }),
+        },
+      ],
+    });
+  };
+
   const setActive = async (planId) => {
     await WorkoutPlanService.setActivePlan(planId);
     await loadPlans();
@@ -57,7 +81,13 @@ export default function WorkoutPlanScreen({ navigation }) {
     const options = [
       {
         text: 'Edit',
-        onPress: () => navigation.navigate('PlanBuilder', { planId: plan.id }),
+        onPress: () => {
+          if (isEditBlocked(plan.id)) {
+            showSessionBlockAlert();
+            return;
+          }
+          navigation.navigate('PlanBuilder', { planId: plan.id });
+        },
       },
     ];
 
@@ -92,7 +122,13 @@ export default function WorkoutPlanScreen({ navigation }) {
     <View style={[styles.planCard, item.is_active && styles.planCardActive]}>
       <TouchableOpacity
         style={styles.planMainContent}
-        onPress={() => navigation.navigate('PlanBuilder', { planId: item.id })}
+        onPress={() => {
+          if (isEditBlocked(item.id)) {
+            showSessionBlockAlert();
+            return;
+          }
+          navigation.navigate('PlanBuilder', { planId: item.id });
+        }}
         activeOpacity={0.7}
       >
         <View style={styles.planContent}>

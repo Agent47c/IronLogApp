@@ -9,54 +9,138 @@ import { format, parseISO, differenceInDays, subDays } from 'date-fns';
 export const AnalyticsHelper = {
 
   /**
-   * Calculate current workout streak
-   * Returns number of consecutive days with workouts
+   * Calculate current workout streak with 2-day grace period.
+   * Returns { streak, daysSinceLastWorkout, message, status }
+   *
+   * Status values:
+   *   'new'          – no workouts recorded
+   *   'active'       – streak is live (worked out today)
+   *   'warning_low'  – 1 day skipped
+   *   'warning_high' – 2 days skipped (last chance)
+   *   'broken'       – 3+ days skipped, streak reset
    */
   calculateStreak: async () => {
     const db = getDatabase();
 
     try {
-      // Get all completed sessions ordered by date DESC
+      // ── 1. Fetch completed session dates (descending) ──
       const sessions = await db.getAllAsync(
         `SELECT DISTINCT session_date 
          FROM workout_sessions 
          WHERE is_completed = 1 
          ORDER BY session_date DESC 
-         LIMIT 100` // Limit to last 100 days for performance
+         LIMIT 200`
       );
 
-      if (!sessions || sessions.length === 0) return 0;
+      // No workouts at all
+      if (!sessions || sessions.length === 0) {
+        return {
+          streak: 0,
+          daysSinceLastWorkout: -1,
+          status: 'new',
+          message: 'Start your streak today 💪',
+        };
+      }
 
-      let streak = 0;
-      let checkDate = format(new Date(), 'yyyy-MM-dd');
+      // ── 2. Determine plan-aware grace period ──
+      // If the user has an active plan with N training days,
+      // the expected gap between workouts is (7 / N) rounded up.
+      // We clamp the grace period between 2 and 3.
+      let gracePeriod = 2; // default
 
-      // Check if there's a workout today or yesterday (to maintain streak)
+      try {
+        const activePlan = await db.getFirstAsync(
+          `SELECT wp.id, COUNT(pd.id) as total_days
+           FROM workout_plans wp
+           JOIN plan_days pd ON pd.plan_id = wp.id
+           WHERE wp.is_active = 1
+           GROUP BY wp.id
+           LIMIT 1`
+        );
+
+        if (activePlan && activePlan.total_days > 0) {
+          const expectedGap = Math.ceil(7 / activePlan.total_days);
+          gracePeriod = Math.max(2, Math.min(expectedGap, 3));
+        }
+      } catch (_) {
+        // Non-critical – fall back to default grace period
+      }
+
+      // ── 3. Calculate days since last workout ──
       const mostRecent = sessions[0].session_date;
       const daysSinceLastWorkout = differenceInDays(
         new Date(),
         parseISO(mostRecent)
       );
 
-      // If last workout was more than 1 day ago, streak is broken
-      if (daysSinceLastWorkout > 1) return 0;
+      // ── 4. Count streak (allow gaps up to gracePeriod) ──
+      let streak = 0;
+      const sessionSet = new Set(sessions.map(s => s.session_date));
 
-      // Count consecutive days with workouts
-      for (let i = 0; i < sessions.length; i++) {
-        const sessionDate = sessions[i].session_date;
+      // Walk backwards from today
+      let cursor = new Date();
+      let consecutiveMisses = 0;
 
-        if (sessionDate === checkDate) {
+      // If we haven't worked out today, start counting misses from today
+      const todayStr = format(cursor, 'yyyy-MM-dd');
+      if (!sessionSet.has(todayStr)) {
+        consecutiveMisses = daysSinceLastWorkout;
+        // If already past grace period, streak is broken
+        if (consecutiveMisses > gracePeriod) {
+          return {
+            streak: 0,
+            daysSinceLastWorkout,
+            status: 'broken',
+            message: 'Your streak has ended. Start again today!',
+          };
+        }
+        // Jump cursor to the most recent workout date
+        cursor = parseISO(mostRecent);
+      }
+
+      // Now walk backwards from cursor, counting workout days
+      // Allow gaps of up to gracePeriod between any two workout dates
+      for (let i = 0; i < 400; i++) {
+        const dateStr = format(subDays(cursor, 0), 'yyyy-MM-dd');
+        if (sessionSet.has(dateStr)) {
           streak++;
-          checkDate = format(subDays(parseISO(checkDate), 1), 'yyyy-MM-dd');
+          // Move cursor back one day and reset gap counter
+          cursor = subDays(cursor, 1);
+          consecutiveMisses = 0;
         } else {
-          // Gap found, streak ends
-          break;
+          consecutiveMisses++;
+          if (consecutiveMisses > gracePeriod) break;
+          cursor = subDays(cursor, 1);
         }
       }
 
-      return streak;
+      // ── 5. Determine status & message ──
+      let status, message;
+
+      if (daysSinceLastWorkout === 0) {
+        status = 'active';
+        message = `🔥 ${streak} Day Streak`;
+      } else if (daysSinceLastWorkout === 1) {
+        status = 'warning_low';
+        message = 'Start exercise today to continue your streak.';
+      } else if (daysSinceLastWorkout === 2) {
+        status = 'warning_high';
+        message = '⚠️ Start exercise today or your streak will break.';
+      } else {
+        status = 'broken';
+        streak = 0;
+        message = 'Your streak has ended. Start again today!';
+      }
+
+      return { streak, daysSinceLastWorkout, status, message };
     } catch (error) {
       console.error('Error calculating streak:', error);
-      return 0;
+      return {
+        streak: 0,
+        daysSinceLastWorkout: -1,
+        status: 'new',
+        message: 'Start your streak today 💪',
+      };
     }
   },
 
@@ -136,7 +220,8 @@ export const AnalyticsHelper = {
         WHERE weight IS NOT NULL
       `);
 
-      const streak = await AnalyticsHelper.calculateStreak();
+      const streakData = await AnalyticsHelper.calculateStreak();
+      const streak = streakData.streak;
 
       const totalWorkouts = stats?.total_workouts || 0;
       const totalVolume = (volumeStats?.total_volume || 0) / 1000; // Convert to kg

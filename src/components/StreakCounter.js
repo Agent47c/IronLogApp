@@ -1,57 +1,78 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_SIZES, FONT_WEIGHTS, SPACING, BORDER_RADIUS } from '../utils/theme';
 
 /**
  * Workout Streak Counter Component
- * Shows current workout streak with fire emoji
- * 
- * @param {number} streak - Current streak count
- * @param {string} variant - 'compact' or 'full' (default: 'full')
+ * Shows current workout streak with dynamic messaging
+ *
+ * @param {number}  streak  - Current streak count
+ * @param {string}  message - Dynamic message from calculateStreak
+ * @param {string}  status  - 'new' | 'active' | 'warning_low' | 'warning_high' | 'broken'
+ * @param {string}  variant - 'compact' or 'full' (default: 'full')
  */
-const StreakCounter = ({ streak = 0, variant = 'full' }) => {
-  const getStreakColor = () => {
-    if (streak === 0) return COLORS.disabled;
-    if (streak < 3) return COLORS.textSecondary;
-    if (streak < 7) return COLORS.warning;
-    if (streak < 14) return COLORS.accent;
-    return COLORS.primary; // 14+ days is fire!
+const StreakCounter = ({ streak = 0, message, status = 'new', variant = 'full' }) => {
+
+  // Derive colours and icon from status
+  const getStatusColor = () => {
+    switch (status) {
+      case 'active': return COLORS.primary;
+      case 'warning_low': return COLORS.warning;
+      case 'warning_high': return '#FF6B00'; // deep orange
+      case 'broken': return COLORS.error || '#E63946';
+      case 'new':
+      default: return COLORS.textSecondary;
+    }
   };
 
-  const getStreakMessage = () => {
-    if (streak === 0) return 'Start your streak!';
-    if (streak === 1) return 'Good start!';
-    if (streak < 3) return 'Keep going!';
-    if (streak < 7) return 'On fire!';
-    if (streak < 14) return 'Unstoppable!';
-    return 'Beast mode!';
+  const getEmoji = () => {
+    switch (status) {
+      case 'active': return '🔥';
+      case 'warning_low': return '⏳';
+      case 'warning_high': return '⚠️';
+      case 'broken': return '💔';
+      case 'new':
+      default: return '💪';
+    }
   };
 
+  const displayMessage = message || (streak > 0 ? `${streak} Day Streak` : 'Start your streak today 💪');
+  const statusColor = getStatusColor();
+  const emoji = getEmoji();
+
+  // ─── Compact variant ───
   if (variant === 'compact') {
     return (
       <View style={styles.compactContainer}>
-        <Text style={styles.fireEmoji}>🔥</Text>
-        <Text style={[styles.compactStreak, { color: getStreakColor() }]}>
+        <Text style={styles.compactEmoji}>{emoji}</Text>
+        <Text style={[styles.compactStreak, { color: statusColor }]}>
           {streak}
         </Text>
       </View>
     );
   }
 
+  // ─── Full variant ───
   return (
-    <View style={[styles.container, streak > 0 && styles.containerActive]}>
+    <View style={[
+      styles.container,
+      status === 'active' && styles.containerActive,
+      (status === 'warning_low' || status === 'warning_high') && styles.containerWarning,
+      status === 'broken' && styles.containerBroken,
+    ]}>
       <View style={styles.streakBadge}>
-        <Text style={styles.fireEmoji}>🔥</Text>
-        <Text style={[styles.streakNumber, { color: getStreakColor() }]}>
-          {streak}
-        </Text>
+        <Text style={styles.fireEmoji}>{emoji}</Text>
+        {streak > 0 && (
+          <Text style={[styles.streakNumber, { color: statusColor }]}>
+            {streak}
+          </Text>
+        )}
       </View>
 
       <View style={styles.textContainer}>
-        <Text style={styles.streakLabel}>Day Streak</Text>
-        <Text style={[styles.streakMessage, { color: getStreakColor() }]}>
-          {getStreakMessage()}
+        {streak > 0 && <Text style={styles.streakLabel}>Day Streak</Text>}
+        <Text style={[styles.streakMessage, { color: statusColor }]}>
+          {displayMessage}
         </Text>
       </View>
     </View>
@@ -71,12 +92,19 @@ const styles = StyleSheet.create({
   },
   containerActive: {
     backgroundColor: COLORS.card,
-    borderColor: COLORS.primary + '30', // 30% opacity
+    borderColor: COLORS.primary + '30',
+  },
+  containerWarning: {
+    backgroundColor: COLORS.card,
+    borderColor: (COLORS.warning || '#FFB800') + '40',
+  },
+  containerBroken: {
+    backgroundColor: COLORS.surface,
+    borderColor: (COLORS.error || '#E63946') + '30',
   },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    // backgroundColor: COLORS.background, // Removed as per request
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     marginRight: SPACING.md,
@@ -111,6 +139,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.round,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
+  },
+  compactEmoji: {
+    fontSize: 16,
   },
   compactStreak: {
     fontSize: FONT_SIZES.md,
